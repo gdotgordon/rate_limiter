@@ -30,7 +30,7 @@ import (
 // channel limits the tokens appropriately.
 type PulseLimiter struct {
 	interval time.Duration
-	source   chan (struct{})
+	source   chan struct{}
 }
 
 // Ensure all interface methods are present.
@@ -40,41 +40,33 @@ var (
 
 // NewPulseLimiter creates a new timer-based Limiter.  The input
 // parameters are the number of items per interval, and the
-// interval type, which is one of the enumerated IntervalType,
-// and finally the burst rate, which is the total capacity of
-// the bucket.  The burst rate essentially says how many tokens
-// will be on hand when the system is quiescent.
-func NewPulseLimiter(items int, interval IntervalType,
-	burst int) (*PulseLimiter, error) {
+// interval type, which is one of the enumerated IntervalType.
+func NewPulseLimiter(items int, interval IntervalType) (*PulseLimiter, error) {
 	if items <= 0 {
 		return nil, fmt.Errorf("'items' must be positive")
-	}
-	if burst <= 0 {
-		return nil, fmt.Errorf("'burst' must be positive")
 	}
 
 	dur := intervalTypeToDuration(interval)
 	p := PulseLimiter{}
 	p.interval = time.Duration(dur.Nanoseconds() / int64(items))
-	p.source = make(chan (struct{}), burst)
+	p.source = make(chan struct{})
 	return &p, nil
 }
 
 // HasTokenServer indicates that the PulseLimiter does use a
 // token server loop.
-func (p PulseLimiter) HasTokenServer() bool {
+func (p *PulseLimiter) HasTokenServer() bool {
 	return true
 }
 
 // ServeTokens is the timer-driven token creator.  It is a
 // blocking call that would likely be invoked from a goroutine.
-func (p PulseLimiter) ServeTokens(ctx context.Context) {
+func (p *PulseLimiter) ServeTokens(ctx context.Context) {
 
 	// We don't really need another channel variable, but making the
 	// channel access unidirectional will allow the compiler
 	// to help us if we misue it here.
-	var sender chan<- (struct{}) = p.source
-
+	var sender chan<- struct{} = p.source
 Loop:
 	for {
 		// If we need to finish, clean up.  Otherwise, try to add
@@ -101,7 +93,7 @@ Loop:
 // specified timeout.  It returns a boolean specifying whether it
 // successfully acquired the token.  Passing a 0 (or zero value) for
 // the timeout means it will block "forever".
-func (p PulseLimiter) AcquireToken(ctx context.Context,
+func (p *PulseLimiter) AcquireToken(ctx context.Context,
 	timeout time.Duration) (bool, error) {
 
 	// If a timeout is not specified, we'll use a nil read channel,
@@ -130,7 +122,7 @@ func (p PulseLimiter) AcquireToken(ctx context.Context,
 // TryAcquireToken attempts to get a bucket token, and fails if one
 // Is not immediately available.  It returns a boolean indicating whether
 // it was able to acquire the token.
-func (p PulseLimiter) TryAcquireToken(ctx context.Context) (bool, error) {
+func (p *PulseLimiter) TryAcquireToken(ctx context.Context) (bool, error) {
 	select {
 	case <-ctx.Done():
 		return false, fmt.Errorf("context canceled")

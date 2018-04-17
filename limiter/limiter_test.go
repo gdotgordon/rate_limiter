@@ -13,11 +13,11 @@ func TestAcquireToken(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p, err := NewPulseLimiter(2, Sec, 1)
+	p, err := NewPulseLimiter(2, Sec)
 	if err != nil {
 		t.Fatalf("Pulser creation failed: %v", err)
 	}
-	time.Sleep(1 * time.Second)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -26,13 +26,14 @@ func TestAcquireToken(t *testing.T) {
 		p.ServeTokens(ctx)
 	}()
 
+	// The sleep ensures the server is ready.
+	time.Sleep(1 * time.Second)
+
 	// The following scenario should yield one success and
 	// two failures, as there is only one token available in
-	// the first second.  Note timing variations make these
-	// tests potentially shaky, and they probably could be
-	// hardened a little by using mechanisms such as channels
-	// to communicate precise timings.  In the interest of time,
-	// it is how it is for now, but the results are repeatable.
+	// the first second.  Note timing variations could affect
+	// these tests, but I've tried to pick timing intervals
+	// that lead to repeatability despite this.
 	var wg2 sync.WaitGroup
 	for i := 0; i < 3; i++ {
 		wg2.Add(1)
@@ -48,19 +49,20 @@ func TestAcquireToken(t *testing.T) {
 		}()
 	}
 	wg2.Wait()
-	if succ != 1 && fail != 2 {
+	if succ != 1 || fail != 2 {
 		t.Fatalf("unexpected counts: succ: %d, fail:%d\n", succ, fail)
 	}
 
+	// One too many for the interval (.5 seconds), so one should fail.
 	succ = 0
 	fail = 0
-	time.Sleep(1 * time.Second)
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		wg2.Add(1)
 		go func() {
 			defer wg2.Done()
 
-			res, err := p.AcquireToken(ctx, 10*time.Millisecond)
+			// Slop the timeout to avoid a very close shave.
+			res, err := p.AcquireToken(ctx, 2200*time.Millisecond)
 			if err != nil || !res {
 				atomic.AddInt64(&fail, 1)
 			} else {
@@ -69,7 +71,7 @@ func TestAcquireToken(t *testing.T) {
 		}()
 	}
 	wg2.Wait()
-	if succ != 2 && fail != 1 {
+	if succ != 4 || fail != 1 {
 		t.Fatalf("unexpected counts (second): succ: %d, fail:%d\n", succ, fail)
 	}
 
@@ -82,13 +84,11 @@ func TestTryAcquireToken(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p, err := NewPulseLimiter(1, Sec, 1)
+	p, err := NewPulseLimiter(1, Sec)
 	if err != nil {
 		t.Fatalf("Pulser creation failed: %v", err)
 	}
 
-	// Should be one token available after a second.
-	time.Sleep(1 * time.Second)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -97,10 +97,12 @@ func TestTryAcquireToken(t *testing.T) {
 		p.ServeTokens(ctx)
 	}()
 
-	// There is one token initially available, and given the refresh
-	// interval, only one should succeed.
+	// The sleep ensures the server is ready.
+	time.Sleep(1 * time.Second)
+
+	// Only one token is available to start.
 	var wg2 sync.WaitGroup
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		wg2.Add(1)
 		go func() {
 			defer wg2.Done()
@@ -113,8 +115,30 @@ func TestTryAcquireToken(t *testing.T) {
 		}()
 	}
 	wg2.Wait()
-	if succ != 1 && fail != 1 {
+	if succ != 1 || fail != 2 {
 		t.Fatalf("unexpected counts: succ: %d, fail:%d\n", succ, fail)
+	}
+
+	// Slop it a little for safety.
+	time.Sleep(1100 * time.Millisecond)
+	// Once again we expect the same result
+	succ = 0
+	fail = 0
+	for i := 0; i < 3; i++ {
+		wg2.Add(1)
+		go func() {
+			defer wg2.Done()
+			res, err := p.TryAcquireToken(ctx)
+			if err != nil || !res {
+				atomic.AddInt64(&fail, 1)
+			} else {
+				atomic.AddInt64(&succ, 1)
+			}
+		}()
+	}
+	wg2.Wait()
+	if succ != 1 || fail != 2 {
+		t.Fatalf("unexpected counts (second): succ: %d, fail:%d\n", succ, fail)
 	}
 
 	cancel()
@@ -124,7 +148,7 @@ func TestTryAcquireToken(t *testing.T) {
 func TestShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	finish := make(chan struct{})
-	p, err := NewPulseLimiter(10, Sec, 1)
+	p, err := NewPulseLimiter(10, Sec)
 	if err != nil {
 		t.Fatalf("Pulse Limiter creation failed: %v", err)
 	}
