@@ -90,7 +90,6 @@ Loop:
 			close(sender)
 			break Loop
 		case sender <- struct{}{}:
-			log.Printf("added token\n")
 		}
 
 		// Sleep to regulate the rate.
