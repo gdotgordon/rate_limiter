@@ -4,15 +4,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +31,7 @@ func main() {
 	p, err := limiter.NewPulser(*ops, limiter.IntervalType(*interval),
 		*burst)
 	if err != nil {
-		log.Fatal("Pulser creation failed: %v", err)
+		log.Fatal("Pulser creation failed: %v\n", err)
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(
@@ -62,16 +59,6 @@ func main() {
 		}))
 	defer ts.Close()
 
-	/*
-		resp, err := http.Post(ts.URL+"/events", "application/json",
-			bytes.NewBufferString("{\"foo\" : \"bar\"}"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		b, _ := httputil.DumpResponse(resp, true)
-		fmt.Println(string(b))
-	*/
-
 	server := server.NewLimiterServer(p, *timeout, ts.URL)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -79,16 +66,5 @@ func main() {
 		defer wg.Done()
 		server.Start(context.Background())
 	}()
-	for i := 0; i < 5; i++ {
-		go func() {
-			resp, err := http.Post("http://localhost:8080/events", "application/json",
-				bytes.NewBufferString("{\"foo\" : \"bar\"}"))
-			if err != nil {
-				log.Fatal(err)
-			}
-			b, _ := httputil.DumpResponse(resp, true)
-			fmt.Println(string(b))
-		}()
-	}
 	wg.Wait()
 }

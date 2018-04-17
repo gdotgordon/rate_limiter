@@ -70,10 +70,22 @@ func (ls *LimiterServer) Start(ctx context.Context) error {
 		cancel()
 	}()
 
-	// This function will be invoked becuase we are using DefaultServeMux.
-	// It turns out to be a great way to have access to the Context object
-	// via the closure.
-	http.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+	// Encapsulate event storer inside limit checker.
+	http.Handle("/events", ls.enforceLimits(ctx,
+		http.HandlerFunc(ls.eventHandler)))
+
+	log.Printf("Limiter server accepting requests ...\n")
+	log.Println(s.ListenAndServe())
+	wg.Wait()
+	return err
+}
+
+// enforceLimits is a "middleware" pattern that allows us to
+// inject additional functionality (here, enforcing rate limiting)
+// to the base functionality (posting an event).
+func (ls *LimiterServer) enforceLimits(ctx context.Context,
+	next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		res, err := ls.limiter.AcquireToken(ctx, ls.timeout)
 		if err != nil {
 			http.Error(w, "Token error", http.StatusInternalServerError)
@@ -84,25 +96,26 @@ func (ls *LimiterServer) Start(ctx context.Context) error {
 			http.Error(w, "System too busy", http.StatusServiceUnavailable)
 			return
 		}
-
-		if r.Body == nil {
-			http.Error(w, "Empty body", http.StatusBadRequest)
-			return
-		}
-
-		resp, err := ls.proxiedService.Post(ls.proxiedURL+"/events", "application/json",
-			r.Body)
-		if err != nil {
-			http.Error(w, "Service error", http.StatusInternalServerError)
-			return
-		} else {
-			w.WriteHeader(resp.StatusCode)
-			return
-		}
+		next.ServeHTTP(w, r)
 	})
+}
 
-	log.Printf("Limiter server accepting requests ...\n")
-	log.Println(s.ListenAndServe())
-	wg.Wait()
-	return err
+// eventHandler will be invoked to store the event if
+func (ls *LimiterServer) eventHandler(w http.ResponseWriter,
+	r *http.Request) {
+	if r.Body == nil {
+		http.Error(w, "Empty body", http.StatusBadRequest)
+		return
+	}
+
+	// Invoke the proxied service and capture the result.
+	resp, err := ls.proxiedService.Post(ls.proxiedURL+"/events",
+		"application/json", r.Body)
+	if err != nil {
+		http.Error(w, "Service error", http.StatusInternalServerError)
+		return
+	} else {
+		w.WriteHeader(resp.StatusCode)
+		return
+	}
 }

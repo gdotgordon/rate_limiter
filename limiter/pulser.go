@@ -92,7 +92,7 @@ Loop:
 			close(sender)
 			break Loop
 		case sender <- struct{}{}:
-			fmt.Printf("appended to channel! %v\n", time.Now())
+			log.Printf("added token\n")
 		}
 
 		// Sleep to regulate the rate.
