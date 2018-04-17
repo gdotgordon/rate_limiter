@@ -29,7 +29,7 @@ The PulseLimiter implements the Limiter interface.  It keeps track of the number
 
 It strives for best accuracy using the Token Bucket algorithm and implementing it fairly literally, in that it dispenses new tokens at a uniform rate, based on the configured settings.  Also, as per the algorithm, it doesn't issue any new tokens and the goroutine sleeps whenever the "bucket" is at capacity.  It uses a loop that runs in it's own goroutine.
 
-The capacity of the bucket is the "burst rate", that is, it's backlog of unused tokens represents the number of requests that could be handled at peak load.  One difference from the formal algorithm is that we assume each item is 1 unit of work, whereas the real algorithm assumes the units are bytes, and weights the actual size of the requests, which we ignore. If the burst rate is set to 1, this should cap the rate.
+The capacity of the bucket is the "burst rate", that is, it's backlog of unused tokens represents the number of requests that could be handled at peak load.  One difference from the formal algorithm is that we assume each item is 1 unit of work, whereas the real algorithm assumes the units are bytes, and weights the actual size of the requests, which we ignore. If the burst rate is set to 1, this should prevent bursts entirely, and allow for an even rate.
 
 All of this works well in Go, as the semantics of a buffered channel fit this abstraction very well.  Note, we don't need to explicitly store the current token count as the blocking nature of the channel limits the tokens appropriately.
 
