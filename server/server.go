@@ -1,7 +1,7 @@
 // Package server implements the limiter server.  It's main
 // type is the LimiterServer, whose sole purpose is to rate-limit
 // incoming requests and reject those that exceed the rate quota.
-// THe server is built in such a way that the rate enforcement is a
+// The server is built in such a way that the rate enforcement is a
 // composable filter that wraps the actual storage service.  The pattern
 // uses a chain of delegation approach such that other functionality, such
 // that additional services, such as logging, could be inserted into
