@@ -31,11 +31,11 @@ func (p placeHolder) WriteHeader(statusCode int) {
 }
 
 func TestEnforceLimits(t *testing.T) {
-	p, err := limiter.NewPulser(250, limiter.Min, 1)
+	p, err := limiter.NewPulseLimiter(250, limiter.Min, 1)
 	if err != nil {
 		t.Fatalf("Pulser creation failed: %v\n", err)
 	}
-	server := NewLimiterServer(p, 500*time.Millisecond, "http://dummy")
+	server := NewLimiterServer(8080, p, 500*time.Millisecond, "http://dummy")
 	var x int64
 	ph := placeHolder{&x}
 

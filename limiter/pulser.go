@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-// The Pulser is the item implmentating the Limiter interface.  It
-// keeps track of the number of tokens currently available, as well
-// as the refresh interval, which is the reciprocal of the rate.
+// The PulseLimiter implements the Limiter interface.  It keeps track
+// of the number of tokens currently available, as well as the refresh
+// interval, which is the reciprocal of the rate.
 //
-// It strives for best accuracy using the Token Bucket algorithm.
-// It implements the algorithm fairly literally, in that it
-// dispenses new tokens at a uniform rate, based on the configured
-// settings.  Also, as per the algorithm, it doesn't issue any new tokens
-// if the "bucket" is at capacity.
+// It strives for best accuracy using the Token Bucket algorithm and
+// implementing it fairly literally, in that it dispenses new tokens
+// at a uniform rate, based on the configured settings.  Also, as per
+// the algorithm, it doesn't issue any new tokens and the goroutine
+// sleeps whenever the "bucket" is at capacity.
 
 // The capcity of the bucket is the "burst rate", that is, it's backlog
 // of unused tokens represents the number of requests that could be handled
@@ -28,24 +28,24 @@ import (
 // fit this abstraction very well.  Note, we don't need to explicitly
 // store the current token count, as it is represented as the length of
 // the buffered channel.
-type Pulser struct {
+type PulseLimiter struct {
 	interval time.Duration
 	source   chan (struct{})
 }
 
 // Ensure all interface methods are present.
 var (
-	_ Limiter = (*Pulser)(nil)
+	_ Limiter = (*PulseLimiter)(nil)
 )
 
-// NewPulser creates a new timer-based Limiter.  The input
+// NewPulseLimiter creates a new timer-based Limiter.  The input
 // parameters are the number of items per interval, and the
 // interval type, which is one of the enumerated IntervalType,
 // and finally the burst rate, which is the total capacity of
 // the bucket.  The burst rate essentially says how many tokens
 // will be on hand when the system is quiescent.
-func NewPulser(items int, interval IntervalType,
-	burst int) (*Pulser, error) {
+func NewPulseLimiter(items int, interval IntervalType,
+	burst int) (*PulseLimiter, error) {
 	if items <= 0 {
 		return nil, fmt.Errorf("'items' must be positive")
 	}
@@ -54,21 +54,21 @@ func NewPulser(items int, interval IntervalType,
 	}
 
 	dur := intervalTypeToDuration(interval)
-	p := Pulser{}
+	p := PulseLimiter{}
 	p.interval = time.Duration(dur.Nanoseconds() / int64(items))
 	p.source = make(chan (struct{}), burst)
 	return &p, nil
 }
 
-// HasTokenServer indicates that the Pulser does use a
+// HasTokenServer indicates that the PulseLimiter does use a
 // token server loop.
-func (p Pulser) HasTokenServer() bool {
+func (p PulseLimiter) HasTokenServer() bool {
 	return true
 }
 
 // ServeTokens is the timer-driven token creator.  It is a
 // blocking call that would likely be invoked from a goroutine.
-func (p Pulser) ServeTokens(ctx context.Context) {
+func (p PulseLimiter) ServeTokens(ctx context.Context) {
 
 	// We don't really need another channel variable, but making the
 	// channel access unidirectional will allow the compiler
@@ -77,15 +77,13 @@ func (p Pulser) ServeTokens(ctx context.Context) {
 
 Loop:
 	for {
-		//fmt.Printf("looping %v, %v\n", p.interval, time.Now())
-
 		// If we need to finish, clean up.  Otherwise, try to add
-		// another token to the channel.  The token add may block,
-		// which is fine, because this means we are in a quiescent
-		// state and there's nothing to limit.
+		// another token to the channel.  The channel send (token add)
+		// may block, which is fine, because this means we are in a
+		// quiescent state and there's nothing to limit.
 		//
 		// Note if we happen to be in a quiescent state when the cancel
-		// comes around, the ctx.Done() will get read.
+		// comes around, the ctx.Done() will get read in the select.
 		select {
 		case <-ctx.Done():
 			log.Printf("Limiter cleanup successful!\n")
@@ -100,10 +98,11 @@ Loop:
 	}
 }
 
-// AcquireToken gets a bucket token to allow it to proceed,
-// and optionally blocks until it acquires a token.  Passing a 0
-// {or zero value) for the timeout means it will block forever.
-func (p Pulser) AcquireToken(ctx context.Context,
+// AcquireToken attempts to acquire a token for the request within the
+// specified timeout.  It returns a boolean specifying whether it
+// successfully acquired the token.  Passing a 0 (or zero value) for
+// the timeout means it will block "forever".
+func (p PulseLimiter) AcquireToken(ctx context.Context,
 	timeout time.Duration) (bool, error) {
 
 	// If a timeout is not specified, we'll use a nil read channel,
@@ -134,7 +133,7 @@ func (p Pulser) AcquireToken(ctx context.Context,
 // TryAcquireToken attempts to get a bucket token, and fails if one
 // Is not immediately available.  It returns a boolean indicating whether
 // it was able to acquire the token.
-func (p Pulser) TryAcquireToken(ctx context.Context) (bool, error) {
+func (p PulseLimiter) TryAcquireToken(ctx context.Context) (bool, error) {
 	select {
 	case <-ctx.Done():
 		return false, fmt.Errorf("Context canceled!")

@@ -1,10 +1,12 @@
-// Package restclient implemnt part of a RESTful service to
-// store JSON-encoded events.
+// Package restclient implements (part of) a RESTful service to
+// store JSON-encoded events.  The service invokes the storage
+// service through the rate limiter proxy.
 package restclient
 
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -47,11 +49,15 @@ func NewEventService(serviceURL string) (*EventService, error) {
 // store was successful.  This boolean will give the app the
 // option of retrying if timeout occurred.
 func (es EventService) StoreEvent(event string) (bool, error) {
-	// This call should return HTTP 201 if successful
+
+	// This call should return HTTP 201 if successful.
 	resp, err := es.client.Post(es.serviceURL+resource, "application/json",
 		bytes.NewReader([]byte(event)))
-	b, _ := httputil.DumpResponse(resp, true)
-	fmt.Println(string(b))
+	if err == nil {
+		b, _ := httputil.DumpResponse(resp, true)
+		log.Println(string(b))
+	}
+
 	if err != nil {
 		return false, err
 	} else if resp.StatusCode == 503 {

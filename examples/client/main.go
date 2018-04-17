@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -17,11 +18,15 @@ import (
 	"github.com/gdotgordon/rate_limiter/restclient"
 )
 
-var concurrency = flag.Int("concurrency", 5, "number of goroutines")
+var (
+	concurrency = flag.Int("concurrency", 5, "number of goroutines")
+	port        = flag.Int("port", 8080, "port limiter server is listening on")
+)
 
 func main() {
 	flag.Parse()
-	cli, err := restclient.NewEventService("http://localhost:8080")
+	cli, err := restclient.NewEventService("http://localhost:" +
+		strconv.Itoa(*port))
 	if err != nil {
 		log.Fatalf("Creating rest client, error: %v\n", err)
 	}

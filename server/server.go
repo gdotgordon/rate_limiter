@@ -1,3 +1,17 @@
+// The server pacakge implements the limiter server.  It's main
+// type is the LimiterServer, whose sole purpose is to rate-limit
+// incoming requests and reject those that exceed the rate quota.
+// THe server is built in such a way that the rate enforcement is a
+// composable filter that wraps the actual storage service.  The pattern
+// uses a chain of delegation approach such that other functionality, such
+// that additional services, such as logging, could be inserted into
+// the chain.
+//
+// The strategy we've chosen for the rate limiter is to allow the user
+// to configure a timeout, after which time the rate limiter will reject
+// the request due to the server load being too high.  This allows us
+// to configure a balance between reliable service and acceptable load,
+// which in practice could be performance-tuned at runtime.
 package server
 
 import (
@@ -6,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -15,16 +30,25 @@ import (
 
 const connTimeout = 30
 
+// The LimiterService is the type implementing the rate limiting service.
+// As explained above, it could easily be extended to cover other functions
+// besides rate limiting with regard to the service it proxies.
 type LimiterServer struct {
+	port           int
 	timeout        time.Duration
 	proxiedURL     string
 	proxiedService *http.Client
 	limiter        limiter.Limiter
 }
 
-func NewLimiterServer(limiter limiter.Limiter, timeout time.Duration,
-	proxiedURL string) *LimiterServer {
-	ls := &LimiterServer{timeout: timeout, proxiedURL: proxiedURL}
+// NewLimiterServer creates a server that runs on the specified port,
+// and applies the provided Limiter to filter incoming requests.  The
+// timeout refers to the client timeout in trying to get through the
+// rate limiter.  The proxied URL is the URL of the backend storage
+// service that requests are forwarded to.
+func NewLimiterServer(port int, limiter limiter.Limiter,
+	timeout time.Duration, proxiedURL string) *LimiterServer {
+	ls := &LimiterServer{port: port, timeout: timeout, proxiedURL: proxiedURL}
 	ls.limiter = limiter
 	ls.proxiedService = &http.Client{
 		Timeout: time.Duration(connTimeout) * time.Second,
@@ -51,7 +75,7 @@ func (ls *LimiterServer) Start(ctx context.Context) error {
 	// Setup the clean shutdown.
 	wg.Add(1)
 	s := http.Server{
-		Addr: ":8080",
+		Addr: ":" + strconv.Itoa(ls.port),
 	}
 	go func() {
 		defer wg.Done()
@@ -74,7 +98,7 @@ func (ls *LimiterServer) Start(ctx context.Context) error {
 	http.Handle("/events", ls.enforceLimits(ctx,
 		http.HandlerFunc(ls.eventHandler)))
 
-	log.Printf("Limiter server accepting requests ...\n")
+	log.Printf("Limiter server accepting requests on port %d ...\n", ls.port)
 	log.Println(s.ListenAndServe())
 	wg.Wait()
 	return err

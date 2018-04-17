@@ -1,4 +1,4 @@
-// The limiter package has implmentations of the Limiter interface,
+// The limiter package has implementations of the Limiter interface,
 // which is a general-purpose token-based rate limiter.  The abstract
 // model employed is that a token must successfully be acquired for
 // some rate-limited code to proceed.
@@ -17,13 +17,13 @@ const (
 )
 
 // Interval type are constants used when specifying a rate, as
-// in X number of operations per <intervaql type>.
+// in X number of operations per <interval type>.
 type IntervalType int
 
 // The Limiter is the abstraction for a rate limiter implementation.
 // This interface has methods that may or may not be used, depending
 // on whether the limiter implementation has a "token server" loop.
-// Some implementations may approximate number of tokens by examining
+// Some implementations may approximate the number of tokens by examining
 // intervals in between requests, and don't require a server loop.
 // However, the algortihms that don't use a generator loop and thus do
 // some sort of interpolation can suffer from a degree of inaccuracy

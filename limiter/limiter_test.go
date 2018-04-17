@@ -13,7 +13,7 @@ func TestAcquireToken(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p, err := NewPulser(2, Sec, 1)
+	p, err := NewPulseLimiter(2, Sec, 1)
 	if err != nil {
 		t.Fatalf("Pulser creation failed: %v", err)
 	}
@@ -26,8 +26,10 @@ func TestAcquireToken(t *testing.T) {
 	// The following scenario should yield one success and
 	// two failures, as there is only one token available in
 	// the first second.  Note timing variations make these
-	// tests potentially shaky, so I'm still considering whether
-	// there's something more foolproof.
+	// tests potentially shaky, and they probably could be
+	// hardened a little by using mechanisms such as channels
+	// to communicate precise timings.  In the interest of time,
+	// it is how it is for now, but the results are repeatable.
 	for i := 0; i < 3; i++ {
 		wg.Add(1)
 		go func() {
@@ -76,7 +78,7 @@ func TestTryAcquireToken(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p, err := NewPulser(2, Sec, 1)
+	p, err := NewPulseLimiter(2, Sec, 1)
 	if err != nil {
 		t.Fatalf("Pulser creation failed: %v", err)
 	}
@@ -137,9 +139,9 @@ func TestTryAcquireToken(t *testing.T) {
 func TestShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	finish := make(chan struct{})
-	p, err := NewPulser(10, Sec, 1)
+	p, err := NewPulseLimiter(10, Sec, 1)
 	if err != nil {
-		t.Fatalf("Pulser creation failed: %v", err)
+		t.Fatalf("Pulse Limiter creation failed: %v", err)
 	}
 	time.Sleep(500 * time.Millisecond)
 	go func() {
