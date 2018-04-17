@@ -13,7 +13,7 @@ The source directories are laid out as follows:
 * limiter: contains the `Limiter` interface and the first implemented interface `PulseLimiter`.
 * server: contains the `LimiterServer` that use the rate limiter and forwards requests to the storage service.
 * restclient: contains the client API, in particular the "StoreEvent()" call.
-* examples/server: doing a *go install* on this builds a binary that can re run for the server.  It uses a built-in dummy test-server for the backend proxied service.  It is a blocking service, so run it in the background, or a separate window. 
+* examples/server: doing a *go install* on this builds a binary that can be run for the server.  It uses a built-in dummy test-server for the backend proxied service.  It is a blocking service, so run it in the background, or a separate window. 
 * examples/client: doing a *go install* on this builds a running client that sends multiple concurrent requests in a loop with random sleeps in between.
 
 Note the server and rate limiter are fully configurable, and there are flags defined in the client and server binaries that will configure these settings as requested.  The defaults are fully operational.
