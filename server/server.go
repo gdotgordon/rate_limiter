@@ -1,4 +1,4 @@
-// The server pacakge implements the limiter server.  It's main
+// Package server implements the limiter server.  It's main
 // type is the LimiterServer, whose sole purpose is to rate-limit
 // incoming requests and reject those that exceed the rate quota.
 // THe server is built in such a way that the rate enforcement is a
@@ -30,7 +30,7 @@ import (
 
 const connTimeout = 30
 
-// The LimiterService is the type implementing the rate limiting service.
+// The LimiterServer is the type implementing the rate limiting service.
 // As explained above, it could easily be extended to cover other functions
 // besides rate limiting with regard to the service it proxies.
 type LimiterServer struct {
@@ -56,6 +56,8 @@ func NewLimiterServer(port int, limiter limiter.Limiter,
 	return ls
 }
 
+// Start starts the token generator loop.  It is blocking, so
+// it should be started in a goroutine.
 func (ls *LimiterServer) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -138,8 +140,7 @@ func (ls *LimiterServer) eventHandler(w http.ResponseWriter,
 	if err != nil {
 		http.Error(w, "Service error", http.StatusInternalServerError)
 		return
-	} else {
-		w.WriteHeader(resp.StatusCode)
-		return
 	}
+	w.WriteHeader(resp.StatusCode)
+	return
 }

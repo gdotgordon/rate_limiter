@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// The PulseLimiter implements the Limiter interface.  It keeps track
+// PulseLimiter implements the Limiter interface.  It keeps track
 // of the number of tokens currently available, as well as the refresh
 // interval, which is the reciprocal of the rate.
 //
@@ -24,7 +24,7 @@ import (
 // are bytes, and weights the actual size of the requests, which we ignore.
 // If the burst rate is set to 1, this should cap the rate.
 
-// All of this works well in Go, as the semantics of a buffered channel
+// PulseLimiter All works well in Go, as the semantics of a buffered channel
 // fit this abstraction very well.  Note, we don't need to explicitly
 // store the current token count, as the size and blocking nature of the
 // channel limits the tokens appropriately.
@@ -117,13 +117,13 @@ func (p PulseLimiter) AcquireToken(ctx context.Context,
 
 	select {
 	case <-ctx.Done():
-		return false, fmt.Errorf("Context canceled!")
+		return false, fmt.Errorf("context canceled")
 	case <-ctime:
 		fmt.Printf("timer fired!\n")
 		return false, nil
 	case _, ok := <-p.source:
 		if !ok {
-			return false, fmt.Errorf("Channel closed!")
+			return false, fmt.Errorf("channel closed")
 		}
 		fmt.Printf("%v: got token...\n", time.Now())
 		return true, nil
@@ -136,13 +136,12 @@ func (p PulseLimiter) AcquireToken(ctx context.Context,
 func (p PulseLimiter) TryAcquireToken(ctx context.Context) (bool, error) {
 	select {
 	case <-ctx.Done():
-		return false, fmt.Errorf("Context canceled!")
+		return false, fmt.Errorf("context canceled")
 	case _, ok := <-p.source:
 		if !ok {
-			return false, fmt.Errorf("Channel closed!")
-		} else {
-			return true, nil
+			return false, fmt.Errorf("channel closed")
 		}
+		return true, nil
 	default:
 		return false, nil
 	}

@@ -1,4 +1,4 @@
-// The limiter package has implementations of the Limiter interface,
+// Package limiter has implementations of the Limiter interface,
 // which is a general-purpose token-based rate limiter.  The abstract
 // model employed is that a token must successfully be acquired for
 // some rate-limited code to proceed.
@@ -16,7 +16,7 @@ const (
 	Min
 )
 
-// Interval type are constants used when specifying a rate, as
+// IntervalType are constants used when specifying a rate, as
 // in X number of operations per <interval type>.
 type IntervalType int
 
