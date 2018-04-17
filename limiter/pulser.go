@@ -26,8 +26,8 @@ import (
 
 // All of this works well in Go, as the semantics of a buffered channel
 // fit this abstraction very well.  Note, we don't need to explicitly
-// store the current token count, as it is represented as the length of
-// the buffered channel.
+// store the current token count, as the size and blocking nature of the
+// channel limits the tokens appropriately.
 type PulseLimiter struct {
 	interval time.Duration
 	source   chan (struct{})

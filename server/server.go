@@ -7,11 +7,11 @@
 // that additional services, such as logging, could be inserted into
 // the chain.
 //
-// The strategy we've chosen for the rate limiter is to allow the user
-// to configure a timeout, after which time the rate limiter will reject
-// the request due to the server load being too high.  This allows us
-// to configure a balance between reliable service and acceptable load,
-// which in practice could be performance-tuned at runtime.
+// The strategy we've chosen for the rate limiter is to use a
+// server-configurable timeout, which will reject a particular request
+// if it waits too long, due to the server load being too high. This
+// allows us to configure a balance between reliable service and acceptable
+// load, which in practice could be performance-tuned at runtime.
 package server
 
 import (
