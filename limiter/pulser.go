@@ -30,7 +30,7 @@ import (
 // channel limits the tokens appropriately.
 type PulseLimiter struct {
 	interval time.Duration
-	source   chan (struct{})
+	tokens   chan struct{}
 }
 
 // Ensure all interface methods are present.
@@ -56,7 +56,7 @@ func NewPulseLimiter(items int, interval IntervalType,
 	dur := intervalTypeToDuration(interval)
 	p := PulseLimiter{}
 	p.interval = time.Duration(dur.Nanoseconds() / int64(items))
-	p.source = make(chan (struct{}), burst)
+	p.tokens = make(chan struct{}, burst)
 	return &p, nil
 }
 
@@ -73,7 +73,7 @@ func (p PulseLimiter) ServeTokens(ctx context.Context) {
 	// We don't really need another channel variable, but making the
 	// channel access unidirectional will allow the compiler
 	// to help us if we misue it here.
-	var sender chan<- (struct{}) = p.source
+	var sender chan<- struct{} = p.tokens
 
 Loop:
 	for {
@@ -119,7 +119,7 @@ func (p PulseLimiter) AcquireToken(ctx context.Context,
 		return false, fmt.Errorf("context canceled")
 	case <-ctime:
 		return false, nil
-	case _, ok := <-p.source:
+	case _, ok := <-p.tokens:
 		if !ok {
 			return false, fmt.Errorf("channel closed")
 		}
@@ -134,7 +134,7 @@ func (p PulseLimiter) TryAcquireToken(ctx context.Context) (bool, error) {
 	select {
 	case <-ctx.Done():
 		return false, fmt.Errorf("context canceled")
-	case _, ok := <-p.source:
+	case _, ok := <-p.tokens:
 		if !ok {
 			return false, fmt.Errorf("channel closed")
 		}
