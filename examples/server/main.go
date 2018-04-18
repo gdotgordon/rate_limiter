@@ -25,11 +25,13 @@ var (
 		"How long clients shoid block if limited by the rate limiter")
 	ops      = flag.Int("ops", 600, "how many ops per specifed interval")
 	interval = flag.Int("interval", int(limiter.Min), "Operations per time")
+	burst    = flag.Int("burst", 1, "Burst rate for limiter")
 )
 
 func main() {
 	flag.Parse()
-	p, err := limiter.NewPulseLimiter(*ops, limiter.IntervalType(*interval))
+	p, err := limiter.NewPulseLimiter(*ops, limiter.IntervalType(*interval),
+		*burst)
 	if err != nil {
 		log.Fatal("Pulser creation failed: %v\n", err)
 	}

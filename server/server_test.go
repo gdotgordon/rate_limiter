@@ -30,10 +30,8 @@ func (p placeHolder) Write([]byte) (int, error) {
 func (p placeHolder) WriteHeader(statusCode int) {
 }
 
-// This test ensures that the Limiter is properly wired
-// into the server.
 func TestEnforceLimits(t *testing.T) {
-	p, err := limiter.NewPulseLimiter(250, limiter.Min)
+	p, err := limiter.NewPulseLimiter(250, limiter.Min, 1)
 	if err != nil {
 		t.Fatalf("Pulser creation failed: %v\n", err)
 	}
@@ -52,8 +50,6 @@ func TestEnforceLimits(t *testing.T) {
 		p.ServeTokens(ctx)
 	}()
 
-	// Given the rate for the limiter and the timeout of .5 sec,
-	// we expect 3 of 5 to work.
 	for i := 0; i < 5; i++ {
 		wg2.Add(1)
 		go func() {
